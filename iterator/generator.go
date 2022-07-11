@@ -1,5 +1,9 @@
 package iterator
 
+import (
+	"math/rand"
+)
+
 type NaturalGenerator struct {
 	index int
 }
@@ -70,4 +74,26 @@ func (m *MaskGenerator) Next() (bool, error, bool) {
 func (m *MaskGenerator) Reset() error {
 	m.index = m.stride
 	return nil
+}
+
+type RandomGenerator[V int | float64] struct {
+	generator func() V
+}
+
+func (r *RandomGenerator[V]) Next() (V, error, bool) {
+	return r.generator(), nil, true
+}
+
+func (r *RandomGenerator[V]) Reset() error { return nil }
+
+func NewRandomIntGenerator() Iterator[int] {
+	return &RandomGenerator[int]{
+		generator: rand.Int,
+	}
+}
+
+func NewRandomFloatGenerator() Iterator[float64] {
+	return &RandomGenerator[float64]{
+		generator: rand.Float64,
+	}
 }

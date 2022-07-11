@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	. "github.com/lucas-s-work/funcy-go/iterator"
 	"github.com/lucas-s-work/funcy-go/slice"
@@ -107,4 +108,50 @@ func main() {
 	fmt.Println(b)
 	fmt.Println(slice.Pick(b))
 	fmt.Println(slice.Shuffle(b))
+
+	Benchmark()
+}
+
+func funcB() {
+	// Take the first 10000 numbers, multiply them by 3, disgard multiples of 7 and convert to a string then concat
+	ns := WithLimit(NewNaturalGenerator(), 10000)
+	ns = Map(ns, func(i int) (int, error) {
+		return i * 3, nil
+	})
+	ns = Filter(ns, func(i int) (bool, error) {
+		return !(i%7 == 0), nil
+	})
+	strs := Map(ns, func(i int) (string, error) {
+		return fmt.Sprintf("%d", i), nil
+	})
+	Sum(strs)
+	// fmt.Println(str)
+}
+
+func funcI() {
+	// Perform the same but in normal golang
+	str := ""
+	for i := 0; i < 10000; i++ {
+		v := i * 3
+		if v%7 == 0 {
+			continue
+		}
+
+		str += fmt.Sprintf("%d", v)
+	}
+
+	// fmt.Println(str)
+}
+
+func Benchmark() {
+
+	start := time.Now().UnixNano()
+	funcB()
+	end := time.Now().UnixNano()
+	fmt.Println("took: ", end-start)
+
+	start = time.Now().UnixNano()
+	funcI()
+	end = time.Now().UnixNano()
+	fmt.Println("took: ", end-start)
 }

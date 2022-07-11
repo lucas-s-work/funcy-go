@@ -40,6 +40,16 @@ func Shuffle[V any](s []V) []V {
 	return o
 }
 
+func Reverse[V constraints.Ordered](arr []V) []V {
+	out := make([]V, len(arr))
+	l := len(out)
+	for i := range arr {
+		out[l-i-1] = arr[i]
+	}
+
+	return out
+}
+
 type sortable[V constraints.Ordered] []V
 
 func (s sortable[V]) Len() int {

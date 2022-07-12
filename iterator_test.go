@@ -23,6 +23,11 @@ func Expensive(f float64) (int, error) {
 // BenchmarkFunctional-8                 58          20375341 ns/op        39366147 B/op       8613 allocs/op
 // BenchmarkImperitive-8                 54          20476251 ns/op        39366005 B/op       8606 allocs/op
 
+type output struct {
+	message string
+	values  []int
+}
+
 func BenchmarkFunctional(b *testing.B) {
 	// Take the first 10000 numbers, multiply them by 3, disgard multiples of 7 and convert to a string then concat
 	for i := 0; i < b.N; i++ {
@@ -40,26 +45,36 @@ func BenchmarkFunctional(b *testing.B) {
 			return math.Sin(math.Cos(math.Sin(math.Tan(f)))), nil
 		})
 		ns4 := Map(ns3, Expensive)
-		strs := Map(ns4, func(i int) (string, error) {
-			return fmt.Sprintf("%d", i), nil
+		out := output{
+			message: "",
+			values:  []int{},
+		}
+		out, _ = Fold(ns4, out, func(i int, out output) (output, error) {
+			out.message += fmt.Sprintf("value is %v", i)
+			out.values = append(out.values, i)
+			return out, nil
 		})
-		Sum(strs)
 	}
 }
 
 func BenchmarkImperitive(b *testing.B) {
 	// Perform the same but in normal golang
 	for i := 0; i < b.N; i++ {
-		str := ""
-		for i := 0; i < 10000; i++ {
-			v := i * 3
+		out := output{
+			message: "",
+			values:  []int{},
+		}
+		for j := 0; j < 10000; j++ {
+			v := j * 3
 			if v%7 == 0 {
 				continue
 			}
 			v2 := math.Sqrt(float64(v))
 			v3 := math.Sin(math.Cos(math.Sin(math.Tan(v2))))
 			v4, _ := Expensive(v3)
-			str += fmt.Sprintf("%v", v4)
+			str := fmt.Sprintf("value is %v", v4)
+			out.message += str
+			out.values = append(out.values, v4)
 		}
 	}
 }

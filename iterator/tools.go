@@ -2,6 +2,7 @@ package iterator
 
 import (
 	"github.com/lucas-s-work/funcy-go/queue"
+	"github.com/lucas-s-work/funcy-go/slice"
 	"golang.org/x/exp/constraints"
 )
 
@@ -21,24 +22,6 @@ func Each[V any](i Iterator[V], f func(V) error) error {
 	}
 }
 
-func EachWithLimit[V any](i Iterator[V], f func(V) error, limit int) error {
-	for index := 0; index < limit; index++ {
-		v, err, ok := i.Next()
-		if !ok {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-
-		if err := f(v); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func Collect[V any](i Iterator[V]) ([]V, error) {
 	var out []V
 	if err := Each(i, func(v V) error {
@@ -54,11 +37,11 @@ func Collect[V any](i Iterator[V]) ([]V, error) {
 
 func CollectWithLimit[V any](i Iterator[V], limit int) ([]V, error) {
 	var out []V
-	if err := EachWithLimit(i, func(v V) error {
+	if err := Each(WithLimit(i, limit), func(v V) error {
 		out = append(out, v)
 
 		return nil
-	}, limit); err != nil {
+	}); err != nil {
 		return nil, err
 	}
 
@@ -173,7 +156,6 @@ func Fold[I, O any](i Iterator[I], acc O, f func(I, O) (O, error)) (O, error) {
 	if err := Each(i, func(v I) error {
 		var err error
 		acc, err = f(v, acc)
-
 		return err
 	}); err != nil {
 		var o O
@@ -234,7 +216,8 @@ type Multable interface {
 }
 
 func Mult[V Multable](i Iterator[V]) (V, error) {
-	return Fold(i, 1, func(v, acc V) (V, error) { return acc * v, nil })
+	var acc V = 1
+	return Fold(i, acc, func(v, acc V) (V, error) { return acc * v, nil })
 }
 
 type distinctIterator[V any, C constraints.Ordered] struct {
@@ -286,6 +269,52 @@ func (d *distinctIterator[V, C]) Reset() error {
 	}
 
 	d.seen = make(map[C]struct{})
+	return nil
+}
+
+type mergeMapIterator[A, B, O any] struct {
+	in1 Iterator[A]
+	in2 Iterator[B]
+	f   func(A, B) (O, error)
+}
+
+func MergeMap[A, B, O any](a Iterator[A], b Iterator[B], f func(A, B) (O, error)) Iterator[O] {
+	return &mergeMapIterator[A, B, O]{
+		in1: a,
+		in2: b,
+		f:   f,
+	}
+}
+
+func (m *mergeMapIterator[A, B, O]) Next() (O, error, bool) {
+	var o O
+	a, err, ok := m.in1.Next()
+	if !ok {
+		return o, nil, false
+	}
+	if err != nil {
+		return o, err, true
+	}
+	b, err, ok := m.in2.Next()
+	if !ok {
+		return o, nil, false
+	}
+	if err != nil {
+		return o, err, true
+	}
+
+	o, err = m.f(a, b)
+	return o, err, true
+}
+
+func (m *mergeMapIterator[A, B, O]) Reset() error {
+	if err := m.in1.Reset(); err != nil {
+		return err
+	}
+	if err := m.in2.Reset(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -454,4 +483,104 @@ func GroupBy[K constraints.Ordered, V any](i Iterator[V], f func(V) K) (map[K][]
 		m[k] = append(arr, v)
 		return m, nil
 	})
+}
+
+type duplicateIterator[V any] struct {
+	i            Iterator[V]
+	count, index int
+	v            V
+}
+
+func Duplicate[V any](i Iterator[V], count int) Iterator[V] {
+	return &duplicateIterator[V]{
+		i:     i,
+		count: count,
+		index: 0,
+	}
+}
+
+func (d *duplicateIterator[V]) Next() (V, error, bool) {
+	if d.index == 0 {
+		d.index = d.count
+		v, err, ok := d.i.Next()
+		if !ok {
+			return v, nil, false
+		}
+		if err != nil {
+			return v, err, true
+		}
+		d.v = v
+	}
+
+	d.index--
+	return d.v, nil, true
+}
+
+func (d *duplicateIterator[V]) Reset() error {
+	if err := d.i.Reset(); err != nil {
+		return err
+	}
+
+	d.index = 0
+	return nil
+}
+
+type sortedIterator[V constraints.Ordered] struct {
+	Iterator[V]
+	in     Iterator[V]
+	sorted bool
+	err    error
+}
+
+func Sort[V constraints.Ordered](i Iterator[V]) Iterator[V] {
+	return &sortedIterator[V]{
+		in:     i,
+		sorted: true,
+	}
+}
+
+func (s *sortedIterator[V]) Reset() error {
+	if err := s.in.Reset(); err != nil {
+		return err
+	}
+
+	s.Iterator = nil
+	s.sorted = false
+	s.err = nil
+	return nil
+}
+
+func (s *sortedIterator[V]) Next() (V, error, bool) {
+	if s.err != nil {
+		var o V
+		return o, s.err, true
+	}
+	if !s.sorted {
+		s.sorted = true
+		els, err := Collect(s.in)
+		if err != nil {
+			var o V
+			s.err = err
+			return o, err, true
+		}
+
+		s.Iterator = NewSliceIterator(slice.Sort(els))
+	}
+
+	return s.Iterator.Next()
+}
+
+func Count[V any](i Iterator[V], check func(V) bool) (int, error) {
+	c, err := Fold(i, 0, func(v V, count int) (int, error) {
+		if check(v) {
+			return count + 1, nil
+		}
+
+		return count, nil
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return c, nil
 }

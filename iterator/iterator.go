@@ -7,7 +7,6 @@ import (
 )
 
 // A set of Functors from Type -> Iterator[Type]
-
 type Iterator[V any] interface {
 	Next() (V, error, bool)
 	Reset() error

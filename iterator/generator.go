@@ -97,3 +97,53 @@ func NewRandomFloatGenerator() Iterator[float64] {
 		generator: rand.Float64,
 	}
 }
+
+// computed primes are globally known
+var primes = []int{2, 3, 5}
+
+type PrimeGenerator struct {
+	index int
+}
+
+// Currently awfully slow, a better method may be to have an expanding memoized hashmap
+// using a sieve
+func NewPrimeGenerator() Iterator[int] {
+	return &PrimeGenerator{
+		index: 0,
+	}
+}
+
+func (p *PrimeGenerator) Next() (int, error, bool) {
+	// Don't re-compute the primes even if this is reset to save speed :)
+	if p.index < len(primes) {
+		p.index++
+		return primes[p.index-1], nil, true
+	}
+
+	next := primes[p.index-1] + 2 // primes are spaced by atleast 2
+	n2 := next / 2
+
+	for {
+		// no prime > 2 divisible by 2
+		for _, prime := range primes {
+			if prime > n2 {
+				// We've found a new prime
+				primes = append(primes, next)
+				return next, nil, true
+			}
+
+			if next%prime != 0 {
+				break
+			}
+		}
+
+		// No prime found, try next number
+		next += 2
+	}
+}
+
+func (p *PrimeGenerator) Reset() error {
+	p.index = 0
+
+	return nil
+}

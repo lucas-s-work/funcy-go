@@ -20,8 +20,8 @@ func Expensive(f float64) (int, error) {
 
 // It's as fast as imperitive, and as memory efficient as imperitive most of the time too!
 // go test -bench=. -benchmem ./...
-// BenchmarkFunctional-8                 58          20375341 ns/op        39366147 B/op       8613 allocs/op
-// BenchmarkImperitive-8                 54          20476251 ns/op        39366005 B/op       8606 allocs/op
+// BenchmarkFunctional-8                 28          45235673 ns/op        393242076 B/op     17472 allocs/op
+// BenchmarkImperitive-8                 25          45932572 ns/op        393241758 B/op     17463 allocs/op
 
 type output struct {
 	message string

@@ -6,6 +6,12 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
+func Times(n int, f func()) {
+	for i := 0; i < n; i++ {
+		f()
+	}
+}
+
 func Each[V any](i Iterator[V], f func(V) error) error {
 	for {
 		v, err, ok := i.Next()
@@ -570,7 +576,7 @@ func (s *sortedIterator[V]) Next() (V, error, bool) {
 	return s.Iterator.Next()
 }
 
-func Count[V any](i Iterator[V], check func(V) bool) (int, error) {
+func CountFilter[V any](i Iterator[V], check func(V) bool) (int, error) {
 	c, err := Fold(i, 0, func(v V, count int) (int, error) {
 		if check(v) {
 			return count + 1, nil
@@ -583,4 +589,131 @@ func Count[V any](i Iterator[V], check func(V) bool) (int, error) {
 	}
 
 	return c, nil
+}
+
+func Count[V any](i Iterator[V]) (int, error) {
+	return Fold(i, 0, func(_ V, count int) (int, error) {
+		return count + 1, nil
+	})
+}
+
+func Skip[V any](i Iterator[V], n int) Iterator[V] {
+	// We don't care about the outputs here, the state is fixed if we end up in an error or empty state
+	Times(5, func() {
+		i.Next()
+	})
+
+	return i
+}
+
+func First[V any](i Iterator[V], c func(v V) (bool, error)) (V, error, bool) {
+	var o V
+	for {
+		v, err, ok := i.Next()
+		if !ok {
+			return o, nil, false
+		}
+		if err != nil {
+			return o, err, true
+		}
+
+		ok, err = c(v)
+		if err != nil {
+			return o, err, true
+		}
+		if ok {
+			return v, nil, true
+		}
+	}
+}
+
+func AllMatch[V any](i Iterator[V], c func(v V) (bool, error)) (bool, error) {
+	_, err, found := First(i, func(v V) (bool, error) {
+		ok, err := c(v)
+		return !ok, err
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return found, nil
+}
+
+func AnyMatch[V any](i Iterator[V], c func(v V) (bool, error)) (bool, error) {
+	_, err, found := First(i, c)
+	if err != nil {
+		return false, err
+	}
+
+	return found, nil
+}
+
+type bindIterator[I, O any] struct {
+	in     Iterator[I]
+	curr   Iterator[O]
+	mapper func(I) (Iterator[O], error)
+}
+
+func Bind[I, O any](i Iterator[I], mapper func(I) (Iterator[O], error)) Iterator[O] {
+	return &bindIterator[I, O]{
+		in:     i,
+		mapper: mapper,
+	}
+}
+
+func (b *bindIterator[I, O]) mapNext() (error, bool) {
+	v, err, ok := b.in.Next()
+	if !ok {
+		return nil, false
+	}
+	if err != nil {
+		return err, true
+	}
+
+	// Avoid directly assigning so we don't skip this step if there is another error
+	curr, err := b.mapper(v)
+	if err != nil {
+		return err, true
+	}
+	b.curr = curr
+
+	return nil, true
+}
+
+func (b *bindIterator[I, O]) Next() (O, error, bool) {
+	var o O
+	if b.curr == nil {
+		err, ok := b.mapNext()
+		if !ok {
+			return o, nil, false
+		}
+		if err != nil {
+			return o, err, true
+		}
+	}
+
+	v, err, ok := b.curr.Next()
+	if !ok {
+		err, ok := b.mapNext()
+		if !ok {
+			return o, nil, false
+		}
+		if err != nil {
+			return o, err, true
+		}
+	}
+	if err != nil {
+		return o, err, true
+	}
+
+	return v, nil, true
+}
+
+func (b *bindIterator[I, O]) Reset() error {
+	if err := b.in.Reset(); err != nil {
+		return err
+	}
+
+	b.curr = nil
+	return nil
 }

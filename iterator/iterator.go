@@ -2,6 +2,7 @@ package iterator
 
 import (
 	"fmt"
+	"io"
 
 	"golang.org/x/exp/constraints"
 )
@@ -217,4 +218,32 @@ func (l *LimitedIterator[V]) Reset() error {
 	l.index = 0
 
 	return nil
+}
+
+type ReadIterator struct {
+	r      io.Reader
+	values []byte
+}
+
+func NewReaderIterator(r io.Reader, stride int) Iterator[[]byte] {
+	return &ReadIterator{
+		r:      r,
+		values: make([]byte, stride),
+	}
+}
+
+func (r *ReadIterator) Next() ([]byte, error, bool) {
+	read, err := r.r.Read(r.values)
+	if err != nil {
+		return nil, err, true
+	}
+	if read < len(r.values) {
+		return r.values[0:read], nil, true
+	}
+
+	return r.values, nil, true
+}
+
+func (r *ReadIterator) Reset() error {
+	return fmt.Errorf("cannot reset Reader iterator")
 }

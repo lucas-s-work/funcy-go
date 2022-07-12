@@ -28,3 +28,4 @@ func Bind[I, O any](r Result[I], f func(I) Result[O]) Result[O] {
 
 // Prove that result.Bind is a valid Bind function
 var _ monad.MonadOb[int, error] = Result[int]{}
+var _ monad.Binder[Result[int], Result[int], int, int, error] = Bind[int, int]

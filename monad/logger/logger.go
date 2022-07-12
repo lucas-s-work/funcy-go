@@ -2,6 +2,8 @@ package logger
 
 import (
 	"strings"
+
+	"github.com/lucas-s-work/funcy-go/monad"
 )
 
 // An example of a logger monad
@@ -28,3 +30,6 @@ func Bind[I, O any](l Logger[I], f func(I) Logger[O]) Logger[O] {
 		log:   append(l.log, nl.log...),
 	}
 }
+
+var _ monad.MonadOb[int, string] = Logger[int]{}
+var _ monad.Binder[Logger[int], Logger[int], int, int, string] = Bind[int, int]

@@ -100,6 +100,41 @@ func main() {
 	amountFloats, err := Collect(ai5)
 	fmt.Println(amountFloats)
 
+	// Split the natural numbers into an even and odd stream
+	v := NewNaturalGenerator()
+	even, odd := Partition(v, func(i int) bool {
+		return i%2 == 0
+	})
+
+	evens, _ := Collect(WithLimit(even, 5))
+	odds, _ := Collect(WithLimit(odd, 6))
+	fmt.Println(evens)
+	fmt.Println(odds)
+
+	// more odd numbers but not more even numbers?
+	odds, _ = Collect(WithLimit(odd, 10))
+	fmt.Println(odds)
+
+	// but don't discard the evens!
+	e, _, _ := even.Next()
+	fmt.Println(e)
+
+	// generate some primes and find their product
+	prime := NewPrimeGenerator()
+	fmt.Println("primes")
+	primes, _ := Collect(WithLimit(prime, 100))
+	fmt.Println(primes)
+
+	prime.Reset()
+	prod, _ := Mult(WithLimit(prime, 10))
+	fmt.Println(prod)
+
+	// generate some random numbers and sort them
+	fmt.Println("sorted")
+	r := WithLimit(NewRandomIntGenerator(), 10)
+	r = Sort(r)
+	fmt.Println(Collect(r))
+
 	// Use the slice package to perform useful operations on slices
 	b := []float32{1, 5, 9, 2, 3, 1, 4}
 	fmt.Println(b)

@@ -126,19 +126,20 @@ func (p *PrimeGenerator) Next() (int, error, bool) {
 	for {
 		// no prime > 2 divisible by 2
 		for _, prime := range primes {
-			if prime > n2 {
+			if prime > n2+1 {
 				// We've found a new prime
 				primes = append(primes, next)
+				p.index++
 				return next, nil, true
 			}
 
-			if next%prime != 0 {
+			if next%prime == 0 {
 				break
 			}
 		}
-
 		// No prime found, try next number
 		next += 2
+		n2 = next / 2
 	}
 }
 

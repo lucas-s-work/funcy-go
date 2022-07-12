@@ -541,7 +541,7 @@ type sortedIterator[V constraints.Ordered] struct {
 func Sort[V constraints.Ordered](i Iterator[V]) Iterator[V] {
 	return &sortedIterator[V]{
 		in:     i,
-		sorted: true,
+		sorted: false,
 	}
 }
 

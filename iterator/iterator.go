@@ -194,17 +194,17 @@ func WithLimit[V any](i Iterator[V], limit int) Iterator[V] {
 }
 
 func (l *LimitedIterator[V]) Next() (V, error, bool) {
+	if l.index == l.limit {
+		var o V
+		return o, nil, false
+	}
+
 	v, err, ok := l.Iterator.Next()
 	if !ok {
 		return v, err, false
 	}
 	if err != nil {
 		return v, err, true
-	}
-
-	if l.index == l.limit {
-		var o V
-		return o, nil, false
 	}
 	l.index++
 

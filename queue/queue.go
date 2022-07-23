@@ -1,5 +1,7 @@
 package queue
 
+import "fmt"
+
 const indexLim = 100
 
 type Queue[V any] struct {
@@ -47,4 +49,8 @@ func (q *Queue[V]) Pop() (V, bool) {
 func (q *Queue[V]) Next() (V, error, bool) {
 	v, ok := q.Pop()
 	return v, nil, ok
+}
+
+func (q *Queue[V]) Reset() error {
+	return fmt.Errorf("cannot reset queue type")
 }

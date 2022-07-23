@@ -1,5 +1,7 @@
 package stack
 
+import "fmt"
+
 type Stack[V any] struct {
 	top *Node[V]
 }
@@ -39,4 +41,8 @@ func (s *Stack[V]) Push(v V) {
 func (s *Stack[V]) Next() (V, error, bool) {
 	v, ok := s.Pop()
 	return v, nil, ok
+}
+
+func (s *Stack[V]) Reset() error {
+	return fmt.Errorf("cannot reset stack type")
 }

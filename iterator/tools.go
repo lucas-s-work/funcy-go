@@ -3,6 +3,7 @@ package iterator
 import (
 	"github.com/lucas-s-work/funcy-go/queue"
 	"github.com/lucas-s-work/funcy-go/slice"
+	"github.com/lucas-s-work/funcy-go/stack"
 	"golang.org/x/exp/constraints"
 )
 
@@ -716,4 +717,82 @@ func (b *bindIterator[I, O]) Reset() error {
 
 	b.curr = nil
 	return nil
+}
+
+func CollectAndFold[I, O any](i Iterator[I], acc O, f func(I, O) (O, error)) ([]I, O, error) {
+	var collection []I
+	accResult, err := Fold(i, acc, func(v I, a O) (O, error) {
+		collection = append(collection, v)
+
+		return f(v, a)
+	})
+	if err != nil {
+		return nil, acc, err
+	}
+
+	return collection, accResult, nil
+}
+
+type clonedIterator[V any] struct {
+	base    Iterator[V]
+	cache   queue.Queue[V]
+	partner *clonedIterator[V]
+}
+
+func Clone[V any](i Iterator[V]) (Iterator[V], Iterator[V]) {
+	iter1 := &clonedIterator[V]{
+		base:  i,
+		cache: queue.Queue[V]{},
+	}
+	iter2 := &clonedIterator[V]{
+		base:    i,
+		cache:   queue.Queue[V]{},
+		partner: iter1,
+	}
+	iter1.partner = iter2
+
+	return iter1, iter2
+}
+
+func (i *clonedIterator[V]) Reset() error {
+	if err := i.base.Reset(); err != nil {
+		return err
+	}
+
+	i.cache = queue.Queue[V]{}
+	return nil
+}
+
+func (i *clonedIterator[V]) Next() (V, error, bool) {
+	if v, ok := i.cache.Pop(); ok {
+		return v, nil, true
+	}
+
+	next, err, ok := i.base.Next()
+	if err != nil {
+		var o V
+		return o, err, true
+	}
+	if !ok {
+		var o V
+		return o, nil, false
+	}
+
+	i.partner.cache.Push(next)
+	return next, nil, false
+}
+
+func Reverse[V any](i Iterator[V]) (Iterator[V], error) {
+	s := stack.Stack[V]{}
+
+	if err := Each(i, func(v V) error {
+		s.Push(v)
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return &s, nil
+
 }

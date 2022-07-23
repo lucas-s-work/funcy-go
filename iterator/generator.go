@@ -1,11 +1,12 @@
 package iterator
 
 import (
+	"fmt"
 	"math/rand"
 )
 
 type NaturalGenerator struct {
-	index int
+	i int
 }
 
 func NewNaturalGenerator() Iterator[int] {
@@ -13,12 +14,12 @@ func NewNaturalGenerator() Iterator[int] {
 }
 
 func (n *NaturalGenerator) Next() (int, error, bool) {
-	n.index++
-	return n.index - 1, nil, true
+	n.i++
+	return n.i - 1, nil, true
 }
 
 func (n *NaturalGenerator) Reset() error {
-	n.index = 0
+	n.i = 0
 	return nil
 }
 
@@ -76,28 +77,6 @@ func (m *MaskGenerator) Reset() error {
 	return nil
 }
 
-type RandomGenerator[V int | float64] struct {
-	generator func() V
-}
-
-func (r *RandomGenerator[V]) Next() (V, error, bool) {
-	return r.generator(), nil, true
-}
-
-func (r *RandomGenerator[V]) Reset() error { return nil }
-
-func NewRandomIntGenerator() Iterator[int] {
-	return &RandomGenerator[int]{
-		generator: rand.Int,
-	}
-}
-
-func NewRandomFloatGenerator() Iterator[float64] {
-	return &RandomGenerator[float64]{
-		generator: rand.Float64,
-	}
-}
-
 // computed primes are globally known
 var primes = []int{2, 3, 5}
 
@@ -147,4 +126,30 @@ func (p *PrimeGenerator) Reset() error {
 	p.index = 0
 
 	return nil
+}
+
+type GeneratorFromFunction[V any] func() V
+
+func FromFunction[V any](f func() V) Iterator[V] {
+	return GeneratorFromFunction[V](f)
+}
+
+func (g GeneratorFromFunction[V]) Next() (V, error, bool) {
+	return g(), nil, true
+}
+
+func (g GeneratorFromFunction[V]) Reset() error {
+	return fmt.Errorf("cannot reset generating function")
+}
+
+func NewRandomIntGenerator() Iterator[int] {
+	return GeneratorFromFunction[int](rand.Int)
+}
+
+func NewRandomFloat32Generator() Iterator[float32] {
+	return GeneratorFromFunction[float32](rand.Float32)
+}
+
+func NewRandomFloat64Generator() Iterator[float64] {
+	return GeneratorFromFunction[float64](rand.Float64)
 }
